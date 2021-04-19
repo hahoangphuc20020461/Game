@@ -2,6 +2,9 @@
 #include "LTexture.h"
 #include "Move.h"
 #include "timer.h"
+#include "Enemy.h"
+//#include "rungame.h"
+//#include "button.h"
 
 bool init()
 {
@@ -40,20 +43,26 @@ bool init()
 			}
 			else
 			{
-				//Initialize renderer color
+				//Khởi tạo màu
 				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
 
-				//Initialize PNG loading
+				//khởi tạo PNG
 				int imgFlags = IMG_INIT_PNG;
 				if( !( IMG_Init( imgFlags ) & imgFlags ) )
 				{
 					printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
 					success = false;
 				}
-				 //Initialize SDL_ttf
+				 //Khởi tao SDL_ttf
 				if( TTF_Init() == -1 )
 				{
 					printf( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError() );
+					success = false;
+				}
+				//Khởi tạo âm thanh
+				if( Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 2048 ) < 0 )
+				{
+					printf( "SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError() );
 					success = false;
 				}
 			}
@@ -79,19 +88,6 @@ bool loadMedia()
 		//Set text color as black
 		SDL_Color textColor = { 0, 0, 0, 255 };
 
-		//Load stop prompt texture
-		if( !gStartPromptTexture.loadFromRenderedText( "Press S to Start or Stop the Timer", textColor ) )
-		{
-			printf ("Unable to render start/stop prompt texture!\n") ;
-			success = false;
-		}
-
-		//Load pause prompt texture
-		if( !gPausePromptTexture.loadFromRenderedText( "Press P to Pause or Unpause the Timer", textColor ) )
-		{
-			printf ("Unable to render pause/unpause prompt texture!\n") ;
-			success = false;
-		}
 	}
 	//Load character texture
 	if( !gCharTexture.loadFromFile( "img/sk.png" ) )
@@ -113,9 +109,17 @@ bool loadMedia()
 		success = false;
 	}
 
-	if( !gUfoTexture.loadFromFile( "img/ufo1.png" ) )
+	if( !gUfoTexture.loadFromFile( "img/eufo.png" ) )
 	{
 		printf( "Failed to load cactus' texture image!\n") ;
+		success = false;
+	}
+
+	//Load music
+	gJump = Mix_LoadWAV( "img/jump.wav" );
+	if( gJump == NULL )
+	{
+		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
 		success = false;
 	}
 
@@ -129,13 +133,19 @@ void close()
 	gCactusTexture.free();
 	gUfoTexture.free();
 	gTimeTextTexture.free();
-	gStartPromptTexture.free();
-	gPausePromptTexture.free();
+	gPlayButtonTexture.free();
+	//gHelpButtonTexture.free();
+	//gExitButtonTexture.free();
+	//gBackButtonTexture.free();
+	//gInstructionTexture.free();
+	//gMenuTexture.free();
 
 
 	TTF_CloseFont( gFont );
 	gFont = NULL;
 
+	Mix_FreeChunk(gJump);
+	gJump = NULL;
 
 	SDL_DestroyRenderer( gRenderer );
 	SDL_DestroyWindow( gWindow );
@@ -144,6 +154,7 @@ void close()
 
 	TTF_Quit();
 	IMG_Quit();
+	Mix_Quit();
 	SDL_Quit();
 }
 
@@ -163,21 +174,29 @@ int main( int argc, char* argv[] )
 		}
 		else
 		{
-			bool quit = false;
-
+            bool quit = false;
 			SDL_Event e;
 
 			//Set màu của text
 			SDL_Color textColor = { 0, 0, 0, 255 };
+
             LTimer timer;
+
             std::stringstream timeText;
 
 			Skate skate;
 
+			Enemy enemyXuongrong(0);
+			Enemy enemyUfo(1);
+
 			srand(time(NULL));
+
 			double scrollingOffset = 0;
-			int time = 0;
 			int acceleration = 0;
+			int frame_enemy = 0;
+
+             timer.start();
+
 			while( !quit )
 			{
 				//Thao tác từ bàn phím
@@ -187,95 +206,64 @@ int main( int argc, char* argv[] )
 					{
 						quit = true;
 					}
-					else if( e.type == SDL_KEYDOWN )
-					{
-						//Start/stop
-						if( e.key.keysym.sym == SDLK_s )
-						{
-							if( timer.isStarted() )
-							{
-								timer.stop();
-							}
-							else
-							{
-								timer.start();
-							}
-						}
-						//Pause/unpause
-						else if( e.key.keysym.sym == SDLK_p )
-						{
-							if( timer.isPaused() )
-							{
-								timer.unpause();
-							}
-							else
-							{
-								timer.pause();
-							}
-						}
-					}
-				}
+                }
 
 				timeText.str( "" );
-				timeText << "Seconds since start time " << ( timer.getTicks() / 100.f ) ;
+				timeText << "Play time " << ( timer.getTicks() / 1000.f );
+				timeText << "  Score: " <<(timer.getTicks()/4000.f);
+
 				if( !gTimeTextTexture.loadFromRenderedText( timeText.str().c_str(), textColor ) )
 				{
 					printf( "Unable to render time texture!\n" );
 				}
+
 					skate.handleEvent( e );
 
 				//di chuyển nhân vật
 				skate.move();
 
-
 				//Cuận màn hình
-				scrollingOffset -= GROUND_SPEED + 0.5 ;
+				scrollingOffset -= GROUND_SPEED + 1 ;
 				if( scrollingOffset < -gBackgroundTexture.getWidth() )
 				{
 					scrollingOffset = 0;
 				}
 
-
 				//Clear screen
 				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
 				SDL_RenderClear( gRenderer );
 
-				gStartPromptTexture.render( ( SCREEN_WIDTH - gStartPromptTexture.getWidth() ) / 2, 0 );
-				gPausePromptTexture.render( ( SCREEN_WIDTH - gPausePromptTexture.getWidth() ) / 2, gStartPromptTexture.getHeight() );
-				gTimeTextTexture.render( ( SCREEN_WIDTH - gTimeTextTexture.getWidth() ) / 2, ( SCREEN_HEIGHT - gTimeTextTexture.getHeight() ) / 2 );
 
 				//Render BackgroundTexture lên màn hình
 				gBackgroundTexture.render( scrollingOffset, 0 );
 				gBackgroundTexture.render(scrollingOffset + gBackgroundTexture.getWidth(), 0);
 
+				gTimeTextTexture.render( ( SCREEN_WIDTH - gTimeTextTexture.getWidth() ) / 2 - 15, 5 );
 
 				//Render skate lên màn hình
 				skate.render();
 
-				int airX, airY;
-				int groundX, groundY;
-                // Tạo vị trí ngẫu nhiên xuất hiện chướng ngại vật
-				airX = SCREEN_WIDTH/2 + rand() % (SCREEN_WIDTH + 1 - SCREEN_WIDTH/2);
-				airY = ENEMY_MIN_HEIGHT + rand() % (ENEMY_MAX_HEIGHT + 1 - ENEMY_MIN_HEIGHT);
+                SDL_Rect* eclip = NULL;
+                SDL_Rect* skclip = NULL;
 
-				groundX = SCREEN_WIDTH/2 + rand() % (SCREEN_WIDTH + 150 - SCREEN_WIDTH/2);
-				groundY = 630;
+                enemyXuongrong.LoadFromFile("img/cactus1.png");
+                enemyXuongrong.Move(acceleration);
+                enemyXuongrong.Render(gRenderer, eclip);
 
-                     //gUfoTexture.render(airX, airY); //480
-				gUfoTexture.render(scrollingOffset + airX, airY);
-				gUfoTexture.render(scrollingOffset + gBackgroundTexture.getWidth(),airY);
-
-                // gCactusTexture.render(groundX, groundY);
-                gCactusTexture.render( scrollingOffset + groundX ,groundY);
-				gCactusTexture.render(scrollingOffset + gBackgroundTexture.getWidth() ,groundY);
+                enemyUfo.LoadFromFile("img/eufo.png");
+                enemyUfo.Move(acceleration);
+                enemyUfo.Render(gRenderer, eclip);
 
 				SDL_RenderPresent( gRenderer );
-			   }
-            }
-		}
 
-	close();
+            }
+        }
+	}
+            close();
 
 	return 0;
 }
+
+
+
 
