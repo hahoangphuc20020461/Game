@@ -9,8 +9,8 @@
 class Skate
 {
     public:
-		 double  JUMP_VEL = 0.5;
-		 double FALL_VEL = 1;
+		 double  JUMP_VEL = 1,1;
+		 double FALL_VEL = 2;
 
 		Skate();
 
