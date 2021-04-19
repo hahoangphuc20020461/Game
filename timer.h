@@ -10,9 +10,9 @@ class LTimer
 		LTimer();
 
 		void start();
-		void stop();
+		//void stop();
 		void pause();
-		void unpause();
+	//	void unpause();
 
 		Uint32 getTicks();
 
@@ -47,16 +47,6 @@ void LTimer::start()
 	mPausedTicks = 0;
 }
 
-void LTimer::stop()
-{
-    mStarted = false;
-
-    mPaused = false;
-
-	mStartTicks = 0;
-	mPausedTicks = 0;
-}
-
 void LTimer::pause()
 {
     if( mStarted && !mPaused )
@@ -66,6 +56,16 @@ void LTimer::pause()
         mPausedTicks = SDL_GetTicks() - mStartTicks;
 		mStartTicks = 0;
     }
+}
+/*
+void LTimer::stop()
+{
+    mStarted = false;
+
+    mPaused = false;
+
+	mStartTicks = 0;
+	mPausedTicks = 0;
 }
 
 void LTimer::unpause()
@@ -82,21 +82,14 @@ void LTimer::unpause()
         mPausedTicks = 0;
     }
 }
-
+*/
 Uint32 LTimer::getTicks()
 {
 	Uint32 time = 0;
 
     if( mStarted )
     {
-        if( mPaused )
-        {
-            time = mPausedTicks;
-        }
-        else
-        {
-            time = SDL_GetTicks() - mStartTicks;
-        }
+            time = SDL_GetTicks(); //- mStartTicks;
     }
 
     return time;
