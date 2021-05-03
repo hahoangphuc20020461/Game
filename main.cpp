@@ -3,8 +3,7 @@
 #include "Move.h"
 #include "timer.h"
 #include "Enemy.h"
-//#include "rungame.h"
-//#include "button.h"
+#include "rungame.h"
 
 bool init()
 {
@@ -92,7 +91,7 @@ bool loadMedia()
 	//Load character texture
 	if( !gCharTexture.loadFromFile( "img/sk.png" ) )
 	{
-		printf ("Failed to load Skate texture image!\n") ;
+		printf ("Failed to load Skate texture image!\n" ) ;
 		success = false;
 	}
 
@@ -105,19 +104,55 @@ bool loadMedia()
 // Load Enemy texture
 	if( !gCactusTexture.loadFromFile( "img/cactus1.png" ) )
 	{
-		printf ("Failed to load cactus' texture image!\n");
+		printf ("Failed to load cactus' texture image!\n" );
 		success = false;
 	}
 
-	if( !gUfoTexture.loadFromFile( "img/eufo.png" ) )
+	if( !gUfoTexture.loadFromFile( "img/eufo1.png" ) )
 	{
 		printf( "Failed to load cactus' texture image!\n") ;
 		success = false;
 	}
+	if(!gLoseTexture.loadFromFile("img/lose1.png") )
+    {
+        printf( "Failed to load gameover' texture image!\n") ;
+		success = false;
+    }
+    if(!gMenuTexture.loadFromFile("img/menu2.png") )
+    {
+        printf( "Failed to load menu' texture image!\n") ;
+		success = false;
+    }
 
 	//Load music
+	gMusic = Mix_LoadMUS("img/music_backgr.wav" );
+	if( gMusic == NULL )
+	{
+		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
+	}
+	gMenu = Mix_LoadMUS("img/menuavenger.wav" );
+	if( gMenu == NULL )
+	{
+		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
+	}
+
 	gJump = Mix_LoadWAV( "img/jump.wav" );
 	if( gJump == NULL )
+	{
+		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
+	}
+
+	gDie = Mix_LoadWAV("img/oidoioi.wav");
+	if( gDie == NULL )
+	{
+		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
+	}
+	gClick = Mix_LoadWAV("img/click.wav" );
+	if( gClick == NULL )
 	{
 		printf( "Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError() );
 		success = false;
@@ -133,19 +168,24 @@ void close()
 	gCactusTexture.free();
 	gUfoTexture.free();
 	gTimeTextTexture.free();
+	gLoseTexture.free();
 	gPlayButtonTexture.free();
-	//gHelpButtonTexture.free();
-	//gExitButtonTexture.free();
-	//gBackButtonTexture.free();
-	//gInstructionTexture.free();
-	//gMenuTexture.free();
+	gMenuTexture.free();
 
 
 	TTF_CloseFont( gFont );
 	gFont = NULL;
 
 	Mix_FreeChunk(gJump);
+	Mix_FreeChunk(gDie);
+	Mix_FreeMusic(gMusic);
+	Mix_FreeMusic(gMenu);
+	Mix_FreeChunk(gClick);
+	gMusic = NULL;
+	gMenu = NULL;
 	gJump = NULL;
+	gDie = NULL;
+	gClick = NULL;
 
 	SDL_DestroyRenderer( gRenderer );
 	SDL_DestroyWindow( gWindow );
@@ -174,13 +214,51 @@ int main( int argc, char* argv[] )
 		}
 		else
 		{
+		    bool quit_menu = false;
+		    bool play_again = false;
+		    Mix_PlayMusic(gMenu, -1);
+
+		    LTimer timer;
+
+		    while( !quit_menu )
+            {
+                SDL_Event e_key;
+                while(SDL_PollEvent(&e_key) != 0)
+                {
+                    if (e_key.type == SDL_QUIT)
+					{
+						quit_menu = true;
+					}
+					if (e_key.type == SDL_KEYDOWN)
+                    {
+                        switch( e_key.key.keysym.sym)
+                        {
+                        case SDLK_s :
+                            {
+                                Mix_PlayChannel(-1, gClick, 0);
+                                play_again = true;
+                                timer.start();
+                            }
+                        case SDLK_ESCAPE:
+                            {
+                                quit_menu = true;
+                            }
+                        }
+                    }
+                }
+             gMenuTexture.render(0,0);
+             SDL_RenderPresent(gRenderer);
+            }
+            while(play_again)
+        {
             bool quit = false;
+            bool game_state = true;
 			SDL_Event e;
 
 			//Set màu của text
 			SDL_Color textColor = { 0, 0, 0, 255 };
 
-            LTimer timer;
+
 
             std::stringstream timeText;
 
@@ -191,14 +269,19 @@ int main( int argc, char* argv[] )
 
 			srand(time(NULL));
 
-			double scrollingOffset = 0;
-			int acceleration = 0;
-			int frame_enemy = 0;
+			Mix_PlayMusic(gMusic, -1);
 
-             timer.start();
+            double scrollingOffset ;
+			double acceleration = 0;
+
+			int time = 0;
+
 
 			while( !quit )
-			{
+        {
+			    if(game_state){
+                UpdateVelocity(time, acceleration);
+
 				//Thao tác từ bàn phím
 				while( SDL_PollEvent( &e ) != 0 )
 				{
@@ -209,8 +292,10 @@ int main( int argc, char* argv[] )
                 }
 
 				timeText.str( "" );
-				timeText << "Play time " << ( timer.getTicks() / 1000.f );
-				timeText << "  Score: " <<(timer.getTicks()/4000.f);
+
+				int score = timer.getTicks()/4000.f;
+
+				timeText << "  Score: " <<( score );
 
 				if( !gTimeTextTexture.loadFromRenderedText( timeText.str().c_str(), textColor ) )
 				{
@@ -223,7 +308,8 @@ int main( int argc, char* argv[] )
 				skate.move();
 
 				//Cuận màn hình
-				scrollingOffset -= GROUND_SPEED + 1 ;
+
+				scrollingOffset -= GROUND_SPEED + 0.8 ;
 				if( scrollingOffset < -gBackgroundTexture.getWidth() )
 				{
 					scrollingOffset = 0;
@@ -244,19 +330,45 @@ int main( int argc, char* argv[] )
 				skate.render();
 
                 SDL_Rect* eclip = NULL;
-                SDL_Rect* skclip = NULL;
 
                 enemyXuongrong.LoadFromFile("img/cactus1.png");
                 enemyXuongrong.Move(acceleration);
                 enemyXuongrong.Render(gRenderer, eclip);
+                enemyXuongrong.GetSpeed(1);
 
-                enemyUfo.LoadFromFile("img/eufo.png");
+                enemyUfo.LoadFromFile("img/eufo1.png");
                 enemyUfo.Move(acceleration);
                 enemyUfo.Render(gRenderer, eclip);
+                enemyUfo.GetSpeed(1);
 
-				SDL_RenderPresent( gRenderer );
-
+                if(checkAllCollision(skate, enemyXuongrong, enemyUfo)){
+                    Mix_PauseMusic();
+                    Mix_PlayChannel(-1, gDie, 0);
+                    quit = false;
+                    while(!quit){
+                    while( SDL_PollEvent( &e ) != 0 )
+				   {
+					 if( e.type == SDL_KEYDOWN)
+         {
+             switch( e.key.keysym.sym )
+            {
+             case SDLK_ESCAPE:
+                 {
+                     play_again = false;
+                     quit = true;
+                 }
             }
+         }
+                   }
+                        drawEndGame(gLoseTexture, play_again);
+                    }
+                }
+
+                SDL_RenderPresent( gRenderer );
+                    }
+                }
+            }
+
         }
 	}
             close();
