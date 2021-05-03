@@ -9,23 +9,33 @@
 class Skate
 {
     public:
-		 double  JUMP_VEL = 1,1;
+		//vận tốc khi nhảy
+		 double JUMP_VEL = 1.1;
 		 double FALL_VEL = 2;
 
 		Skate();
 
 		bool OnGround();
 
-		void handleEvent( SDL_Event& e );
-
 		void move();
 
+		void handleEvent( SDL_Event& e );
+
+		//hiển thị nhân vật ra màn hình
 		void render();
 
+		int GetPosX();
+
+	    int GetPosY();
+
+
     private:
+		//tọa độ của nhân vật
 		int mPosX, mPosY;
 
+		//trạng thái của nhân vật
 		double status ;
+
 
 };
 
@@ -39,6 +49,7 @@ Skate::Skate()
 
 void Skate::handleEvent( SDL_Event& e )
 {
+    //thiết lập trạng thái phím bấm
 	if( e.type == SDL_KEYDOWN && e.key.repeat == 0 )
     {
         switch( e.key.keysym.sym )
@@ -46,7 +57,9 @@ void Skate::handleEvent( SDL_Event& e )
             case SDLK_UP:
                 {
                 if(OnGround()){
+                    Mix_PlayChannel(-1,gJump,0);
                     status = JUMP;
+                    break;
                 }
             }
         }
@@ -54,8 +67,9 @@ void Skate::handleEvent( SDL_Event& e )
 
 }
 
-void Skate::move(){
-
+void Skate::move()
+{
+    //thiết lập trang thái nhảy lên hạ xuống
     if( status == JUMP&&mPosY >= MAX_HEIGHT )
     {
         mPosY += -JUMP_VEL;
@@ -79,5 +93,16 @@ bool Skate::OnGround()
 {
    return mPosY = GROUND;
 }
+
+int Skate::GetPosX()
+{
+    return mPosX;
+}
+
+int Skate::GetPosY()
+{
+    return mPosY;
+}
+
 
 #endif // MOVE_H_
